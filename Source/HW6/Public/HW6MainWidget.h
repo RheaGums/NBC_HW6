@@ -19,6 +19,11 @@ class HW6_API UHW6MainWidget : public UUserWidget
 public:
 	void SetMessage(const FString& Message);
 	void SetAttempts(int32 CurrentAttempts, int32 MaxAttempts);
+	void SetTurnState(
+		const FString& CurrentTurnPlayerName,
+		int32 RemainingSeconds,
+		bool bIsLocalPlayersTurn
+	);
 	void ShowRoundResult(const FString& ResultMessage);
 	void HideRoundResult();
 
@@ -39,6 +44,12 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> AttemptsTextBlock;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> CurrentTurnTextBlock;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TurnTimerTextBlock;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UOverlay> ResultOverlay;

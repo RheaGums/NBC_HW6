@@ -67,6 +67,50 @@ void UHW6MainWidget::SetAttempts(
 	AttemptsTextBlock->SetText(AttemptsText);
 }
 
+void UHW6MainWidget::SetTurnState(
+	const FString& CurrentTurnPlayerName,
+	const int32 RemainingSeconds,
+	const bool bIsLocalPlayersTurn
+)
+{
+	if (IsValid(CurrentTurnTextBlock))
+	{
+		const FText TurnText = CurrentTurnPlayerName.IsEmpty()
+			? NSLOCTEXT("HW6", "WaitingForTurn", "현재 턴: 대기 중")
+			: FText::Format(
+				bIsLocalPlayersTurn
+					? NSLOCTEXT("HW6", "MyTurnFormat", "현재 턴: {0} (내 차례)")
+					: NSLOCTEXT("HW6", "OtherTurnFormat", "현재 턴: {0}"),
+				FText::FromString(CurrentTurnPlayerName)
+			);
+
+		CurrentTurnTextBlock->SetText(TurnText);
+	}
+
+	if (IsValid(TurnTimerTextBlock))
+	{
+		const FText TimerText = FText::Format(
+			NSLOCTEXT("HW6", "TurnTimerFormat", "남은 시간: {0}초"),
+			FText::AsNumber(RemainingSeconds)
+		);
+
+		TurnTimerTextBlock->SetText(TimerText);
+	}
+
+	const bool bCanSubmit =
+		bIsLocalPlayersTurn && RemainingSeconds > 0;
+
+	if (IsValid(GuessInputTextBox))
+	{
+		GuessInputTextBox->SetIsEnabled(bCanSubmit);
+	}
+
+	if (IsValid(SubmitButton))
+	{
+		SubmitButton->SetIsEnabled(bCanSubmit);
+	}
+}
+
 void UHW6MainWidget::ShowRoundResult(const FString& ResultMessage)
 {
 	if (IsValid(ResultTextBlock))

@@ -25,6 +25,7 @@ public:
 
 	void DisplayMessage(const FString& Message);
 	void RefreshAttemptsDisplay();
+	void RefreshTurnDisplay();
 	void ShowRoundResult(const FString& ResultMessage);
 	void HideRoundResult();
 

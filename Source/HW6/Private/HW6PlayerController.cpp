@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HW6GameMode.h"
+#include "HW6GameState.h"
 #include "HW6MainWidget.h"
 #include "HW6PlayerState.h"
 
@@ -44,6 +45,7 @@ void AHW6PlayerController::BeginPlay()
 
 	MainWidget->AddToViewport();
 	RefreshAttemptsDisplay();
+	RefreshTurnDisplay();
 
 	FInputModeGameAndUI InputMode;
 	InputMode.SetWidgetToFocus(MainWidget->TakeWidget());
@@ -122,6 +124,40 @@ void AHW6PlayerController::RefreshAttemptsDisplay()
 	MainWidget->SetAttempts(
 		HW6PlayerState->GetCurrentAttempts(),
 		HW6PlayerState->GetMaxAttempts()
+	);
+}
+
+void AHW6PlayerController::RefreshTurnDisplay()
+{
+	if (!IsLocalController() || !IsValid(MainWidget))
+	{
+		return;
+	}
+
+	const AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (!IsValid(HW6GameState))
+	{
+		MainWidget->SetTurnState(TEXT(""), 0, false);
+		return;
+	}
+
+	const AHW6PlayerState* CurrentTurnPlayer =
+		HW6GameState->GetCurrentTurnPlayer();
+	const AHW6PlayerState* LocalPlayerState =
+		GetPlayerState<AHW6PlayerState>();
+
+	const bool bIsLocalPlayersTurn =
+		IsValid(CurrentTurnPlayer)
+		&& CurrentTurnPlayer == LocalPlayerState;
+
+	MainWidget->SetTurnState(
+		IsValid(CurrentTurnPlayer)
+			? CurrentTurnPlayer->GetPlayerName()
+			: TEXT(""),
+		HW6GameState->GetRemainingTurnSeconds(),
+		bIsLocalPlayersTurn
 	);
 }
 

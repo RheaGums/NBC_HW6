@@ -52,6 +52,27 @@ void AHW6GameMode::PostLogin(APlayerController* NewPlayer)
 		TEXT("[Server] %s joined the game."),
 		*NewPlayerName
 	);
+
+	if (bRoundActive && !CurrentTurnPlayer.IsValid())
+	{
+		StartTurn(NewPlayerState);
+	}
+}
+
+void AHW6GameMode::Logout(AController* Exiting)
+{
+	AHW6PlayerState* ExitingPlayerState = IsValid(Exiting)
+		? Exiting->GetPlayerState<AHW6PlayerState>()
+		: nullptr;
+	const bool bWasCurrentTurnPlayer =
+		CurrentTurnPlayer.Get() == ExitingPlayerState;
+
+	Super::Logout(Exiting);
+
+	if (HasAuthority() && bRoundActive && bWasCurrentTurnPlayer)
+	{
+		AdvanceTurn();
+	}
 }
 
 void AHW6GameMode::ProcessPlayerInput(
@@ -81,6 +102,30 @@ void AHW6GameMode::ProcessPlayerInput(
 		return;
 	}
 
+	if (!CurrentTurnPlayer.IsValid())
+	{
+		SubmittingPlayer->ClientReceiveMessage(
+			TEXT("현재 진행 중인 턴이 없습니다.")
+		);
+		return;
+	}
+
+	if (CurrentTurnPlayer.Get() != SubmittingPlayerState)
+	{
+		SubmittingPlayer->ClientReceiveMessage(
+			TEXT("현재 당신의 턴이 아닙니다.")
+		);
+		return;
+	}
+
+	if (RemainingTurnSeconds <= 0)
+	{
+		SubmittingPlayer->ClientReceiveMessage(
+			TEXT("입력 시간이 종료되었습니다.")
+		);
+		return;
+	}
+
 	if (!SubmittingPlayerState->HasAttemptsLeft())
 	{
 		SubmittingPlayer->ClientReceiveMessage(TEXT("시도 기회를 모두 사용했습니다."));
@@ -101,6 +146,8 @@ void AHW6GameMode::ProcessPlayerInput(
 		SubmittingPlayer->ClientReceiveMessage(TEXT("시도 횟수를 증가시킬 수 없습니다."));
 		return;
 	}
+
+	bSubmittedThisTurn = true;
 
 	int32 StrikeCount = 0;
 	int32 BallCount = 0;
@@ -143,7 +190,10 @@ void AHW6GameMode::ProcessPlayerInput(
 	if (AreAllPlayersOutOfAttempts())
 	{
 		EndRound(TEXT("무승부! 3초 후 새 라운드가 시작됩니다."));
+		return;
 	}
+
+	AdvanceTurn();
 }
 
 void AHW6GameMode::GenerateRandomNumbers()
@@ -301,6 +351,184 @@ bool AHW6GameMode::AreAllPlayersOutOfAttempts() const
 	return bFoundPlayer;
 }
 
+void AHW6GameMode::StartTurn(AHW6PlayerState* TurnPlayer)
+{
+	if (!HasAuthority() || !bRoundActive || !IsValid(TurnPlayer))
+	{
+		return;
+	}
+
+	StopTurnTimer();
+
+	CurrentTurnPlayer = TurnPlayer;
+	bSubmittedThisTurn = false;
+	RemainingTurnSeconds = TurnDurationSeconds;
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (IsValid(HW6GameState))
+	{
+		HW6GameState->SetTurnState(
+			TurnPlayer,
+			RemainingTurnSeconds
+		);
+	}
+
+	GetWorldTimerManager().SetTimer(
+		TurnTimerHandle,
+		this,
+		&AHW6GameMode::HandleTurnTimerTick,
+		1.0f,
+		true
+	);
+}
+
+void AHW6GameMode::AdvanceTurn()
+{
+	if (!HasAuthority() || !bRoundActive)
+	{
+		return;
+	}
+
+	StopTurnTimer();
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (!IsValid(HW6GameState) || HW6GameState->PlayerArray.IsEmpty())
+	{
+		CurrentTurnPlayer.Reset();
+		RemainingTurnSeconds = 0;
+
+		if (IsValid(HW6GameState))
+		{
+			HW6GameState->SetTurnState(nullptr, 0);
+		}
+		return;
+	}
+
+	const int32 PlayerCount = HW6GameState->PlayerArray.Num();
+	int32 CurrentPlayerIndex = INDEX_NONE;
+
+	for (int32 Index = 0; Index < PlayerCount; ++Index)
+	{
+		if (HW6GameState->PlayerArray[Index] == CurrentTurnPlayer.Get())
+		{
+			CurrentPlayerIndex = Index;
+			break;
+		}
+	}
+
+	for (int32 Offset = 1; Offset <= PlayerCount; ++Offset)
+	{
+		const int32 CandidateIndex = CurrentPlayerIndex == INDEX_NONE
+			? Offset - 1
+			: (CurrentPlayerIndex + Offset) % PlayerCount;
+		AHW6PlayerState* CandidatePlayer =
+			Cast<AHW6PlayerState>(
+				HW6GameState->PlayerArray[CandidateIndex]
+			);
+
+		if (
+			IsValid(CandidatePlayer)
+			&& CandidatePlayer->HasAttemptsLeft()
+		)
+		{
+			StartTurn(CandidatePlayer);
+			return;
+		}
+	}
+
+	if (AreAllPlayersOutOfAttempts())
+	{
+		EndRound(TEXT("무승부! 3초 후 새 라운드가 시작됩니다."));
+		return;
+	}
+
+	CurrentTurnPlayer.Reset();
+	RemainingTurnSeconds = 0;
+	HW6GameState->SetTurnState(nullptr, 0);
+}
+
+void AHW6GameMode::HandleTurnTimerTick()
+{
+	if (!HasAuthority() || !bRoundActive)
+	{
+		StopTurnTimer();
+		return;
+	}
+
+	RemainingTurnSeconds = FMath::Max(
+		0,
+		RemainingTurnSeconds - 1
+	);
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (IsValid(HW6GameState))
+	{
+		HW6GameState->SetRemainingTurnSeconds(
+			RemainingTurnSeconds
+		);
+	}
+
+	if (RemainingTurnSeconds <= 0)
+	{
+		HandleTurnTimeout();
+	}
+}
+
+void AHW6GameMode::HandleTurnTimeout()
+{
+	if (!HasAuthority() || !bRoundActive)
+	{
+		return;
+	}
+
+	StopTurnTimer();
+
+	AHW6PlayerState* TimedOutPlayer = CurrentTurnPlayer.Get();
+
+	if (
+		IsValid(TimedOutPlayer)
+		&& !bSubmittedThisTurn
+		&& TimedOutPlayer->HasAttemptsLeft()
+	)
+	{
+		TimedOutPlayer->AddAttempt();
+
+		AHW6GameState* HW6GameState =
+			GetWorld()->GetGameState<AHW6GameState>();
+
+		if (IsValid(HW6GameState))
+		{
+			HW6GameState->MulticastBroadcastMessage(
+				FString::Printf(
+					TEXT("%s 시간 초과! [%d/%d]"),
+					*TimedOutPlayer->GetPlayerName(),
+					TimedOutPlayer->GetCurrentAttempts(),
+					TimedOutPlayer->GetMaxAttempts()
+				)
+			);
+		}
+	}
+
+	if (AreAllPlayersOutOfAttempts())
+	{
+		EndRound(TEXT("무승부! 3초 후 새 라운드가 시작됩니다."));
+		return;
+	}
+
+	AdvanceTurn();
+}
+
+void AHW6GameMode::StopTurnTimer()
+{
+	GetWorldTimerManager().ClearTimer(TurnTimerHandle);
+}
+
 void AHW6GameMode::EndRound(const FString& ResultMessage)
 {
 	if (!HasAuthority() || !bRoundActive)
@@ -309,12 +537,16 @@ void AHW6GameMode::EndRound(const FString& ResultMessage)
 	}
 
 	bRoundActive = false;
+	StopTurnTimer();
+	CurrentTurnPlayer.Reset();
+	RemainingTurnSeconds = 0;
 
 	AHW6GameState* HW6GameState =
 		GetWorld()->GetGameState<AHW6GameState>();
 
 	if (IsValid(HW6GameState))
 	{
+		HW6GameState->SetTurnState(nullptr, 0);
 		HW6GameState->MulticastShowRoundResult(ResultMessage);
 	}
 
@@ -353,6 +585,9 @@ void AHW6GameMode::ResetGame()
 
 	GenerateRandomNumbers();
 	bRoundActive = true;
+	CurrentTurnPlayer.Reset();
+	bSubmittedThisTurn = false;
+	RemainingTurnSeconds = 0;
 
 	if (IsValid(HW6GameState))
 	{
@@ -361,4 +596,6 @@ void AHW6GameMode::ResetGame()
 			TEXT("새 라운드가 시작되었습니다!")
 		);
 	}
+
+	AdvanceTurn();
 }
