@@ -21,6 +21,39 @@ void AHW6GameMode::BeginPlay()
 	GenerateRandomNumbers();
 }
 
+void AHW6GameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+
+	if (!HasAuthority() || !IsValid(NewPlayer))
+	{
+		return;
+	}
+
+	AHW6PlayerState* NewPlayerState =
+		NewPlayer->GetPlayerState<AHW6PlayerState>();
+
+	if (!IsValid(NewPlayerState))
+	{
+		return;
+	}
+
+	const FString NewPlayerName = FString::Printf(
+		TEXT("Player %d"),
+		NextPlayerNumber
+	);
+	++NextPlayerNumber;
+
+	NewPlayerState->SetPlayerName(NewPlayerName);
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Server] %s joined the game."),
+		*NewPlayerName
+	);
+}
+
 void AHW6GameMode::ProcessPlayerInput(
 	AHW6PlayerController* SubmittingPlayer,
 	const FString& Input
@@ -28,6 +61,14 @@ void AHW6GameMode::ProcessPlayerInput(
 {
 	if (!HasAuthority() || !IsValid(SubmittingPlayer))
 	{
+		return;
+	}
+
+	if (!bRoundActive)
+	{
+		SubmittingPlayer->ClientReceiveMessage(
+			TEXT("라운드가 종료되었습니다. 다음 라운드를 기다려주세요.")
+		);
 		return;
 	}
 
@@ -86,6 +127,22 @@ void AHW6GameMode::ProcessPlayerInput(
 	if (IsValid(HW6GameState))
 	{
 		HW6GameState->MulticastBroadcastMessage(ResultMessage);
+	}
+
+	if (StrikeCount == SecretNumberLength)
+	{
+		EndRound(
+			FString::Printf(
+				TEXT("%s 승리! 3초 후 새 라운드가 시작됩니다."),
+				*SubmittingPlayerState->GetPlayerName()
+			)
+		);
+		return;
+	}
+
+	if (AreAllPlayersOutOfAttempts())
+	{
+		EndRound(TEXT("무승부! 3초 후 새 라운드가 시작됩니다."));
 	}
 }
 
@@ -209,4 +266,98 @@ FString AHW6GameMode::CheckAnswer(
 		OutStrikeCount,
 		OutBallCount
 	);
+}
+
+bool AHW6GameMode::AreAllPlayersOutOfAttempts() const
+{
+	const AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (!IsValid(HW6GameState))
+	{
+		return false;
+	}
+
+	bool bFoundPlayer = false;
+
+	for (const APlayerState* PlayerState : HW6GameState->PlayerArray)
+	{
+		const AHW6PlayerState* HW6PlayerState =
+			Cast<AHW6PlayerState>(PlayerState);
+
+		if (!IsValid(HW6PlayerState))
+		{
+			continue;
+		}
+
+		bFoundPlayer = true;
+
+		if (HW6PlayerState->HasAttemptsLeft())
+		{
+			return false;
+		}
+	}
+
+	return bFoundPlayer;
+}
+
+void AHW6GameMode::EndRound(const FString& ResultMessage)
+{
+	if (!HasAuthority() || !bRoundActive)
+	{
+		return;
+	}
+
+	bRoundActive = false;
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (IsValid(HW6GameState))
+	{
+		HW6GameState->MulticastBroadcastMessage(ResultMessage);
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ResetGameTimerHandle,
+		this,
+		&AHW6GameMode::ResetGame,
+		RoundResetDelay,
+		false
+	);
+}
+
+void AHW6GameMode::ResetGame()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (IsValid(HW6GameState))
+	{
+		for (APlayerState* PlayerState : HW6GameState->PlayerArray)
+		{
+			AHW6PlayerState* HW6PlayerState =
+				Cast<AHW6PlayerState>(PlayerState);
+
+			if (IsValid(HW6PlayerState))
+			{
+				HW6PlayerState->ResetAttempts();
+			}
+		}
+	}
+
+	GenerateRandomNumbers();
+	bRoundActive = true;
+
+	if (IsValid(HW6GameState))
+	{
+		HW6GameState->MulticastBroadcastMessage(
+			TEXT("새 라운드가 시작되었습니다!")
+		);
+	}
 }
