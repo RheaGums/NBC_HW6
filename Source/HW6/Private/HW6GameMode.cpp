@@ -97,3 +97,47 @@ bool AHW6GameMode::ValidateInput(
 	OutValidatedInput = NormalizedInput;
 	return true;
 }
+
+FString AHW6GameMode::CheckAnswer(
+	const FString& ValidatedInput,
+	int32& OutStrikeCount,
+	int32& OutBallCount
+) const
+{
+	OutStrikeCount = 0;
+	OutBallCount = 0;
+
+	if (
+		SecretNumbers.Num() != SecretNumberLength
+		|| ValidatedInput.Len() != SecretNumberLength
+	)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Server] CheckAnswer received invalid data."));
+		return TEXT("INVALID");
+	}
+
+	for (int32 Index = 0; Index < SecretNumberLength; ++Index)
+	{
+		const int32 GuessDigit = ValidatedInput[Index] - TEXT('0');
+
+		if (SecretNumbers[Index] == GuessDigit)
+		{
+			++OutStrikeCount;
+		}
+		else if (SecretNumbers.Contains(GuessDigit))
+		{
+			++OutBallCount;
+		}
+	}
+
+	if (OutStrikeCount == 0 && OutBallCount == 0)
+	{
+		return TEXT("OUT");
+	}
+
+	return FString::Printf(
+		TEXT("%dS%dB"),
+		OutStrikeCount,
+		OutBallCount
+	);
+}

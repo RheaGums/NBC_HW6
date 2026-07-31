@@ -23,6 +23,11 @@ protected:
 		FString& OutValidatedInput,
 		FString& OutErrorMessage
 	) const;
+	FString CheckAnswer(
+		const FString& ValidatedInput,
+		int32& OutStrikeCount,
+		int32& OutBallCount
+	) const;
 
 private:
 	static constexpr int32 SecretNumberLength = 3;
