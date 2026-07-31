@@ -2,6 +2,7 @@
 
 #include "HW6GameMode.h"
 
+#include "Engine/World.h"
 #include "HW6GameState.h"
 #include "HW6PlayerController.h"
 #include "HW6PlayerState.h"
@@ -78,7 +79,14 @@ void AHW6GameMode::ProcessPlayerInput(
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("[Server] %s"), *ResultMessage);
-	SubmittingPlayer->ClientReceiveMessage(ResultMessage);
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (IsValid(HW6GameState))
+	{
+		HW6GameState->MulticastBroadcastMessage(ResultMessage);
+	}
 }
 
 void AHW6GameMode::GenerateRandomNumbers()

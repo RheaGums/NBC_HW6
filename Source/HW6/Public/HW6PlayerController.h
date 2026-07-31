@@ -23,6 +23,7 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveMessage(const FString& Message);
 
+	void DisplayMessage(const FString& Message);
 	void RefreshAttemptsDisplay();
 
 protected:

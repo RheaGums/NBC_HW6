@@ -80,6 +80,11 @@ void AHW6PlayerController::ServerSubmitGuess_Implementation(const FString& Input
 
 void AHW6PlayerController::ClientReceiveMessage_Implementation(const FString& Message)
 {
+	DisplayMessage(Message);
+}
+
+void AHW6PlayerController::DisplayMessage(const FString& Message)
+{
 	UE_LOG(LogTemp, Display, TEXT("[Client] %s"), *Message);
 
 	if (IsValid(MainWidget))
