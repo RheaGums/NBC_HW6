@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "HW6GameMode.generated.h"
 
+class AHW6PlayerController;
+
 UCLASS()
 class HW6_API AHW6GameMode : public AGameModeBase
 {
@@ -13,6 +15,8 @@ class HW6_API AHW6GameMode : public AGameModeBase
 
 public:
 	AHW6GameMode();
+
+	void ProcessPlayerInput(AHW6PlayerController* SubmittingPlayer, const FString& Input);
 
 protected:
 	virtual void BeginPlay() override;

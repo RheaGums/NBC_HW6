@@ -20,6 +20,67 @@ void AHW6GameMode::BeginPlay()
 	GenerateRandomNumbers();
 }
 
+void AHW6GameMode::ProcessPlayerInput(
+	AHW6PlayerController* SubmittingPlayer,
+	const FString& Input
+)
+{
+	if (!HasAuthority() || !IsValid(SubmittingPlayer))
+	{
+		return;
+	}
+
+	AHW6PlayerState* SubmittingPlayerState =
+		SubmittingPlayer->GetPlayerState<AHW6PlayerState>();
+
+	if (!IsValid(SubmittingPlayerState))
+	{
+		SubmittingPlayer->ClientReceiveMessage(TEXT("PlayerState를 찾을 수 없습니다."));
+		return;
+	}
+
+	if (!SubmittingPlayerState->HasAttemptsLeft())
+	{
+		SubmittingPlayer->ClientReceiveMessage(TEXT("시도 기회를 모두 사용했습니다."));
+		return;
+	}
+
+	FString ValidatedInput;
+	FString ErrorMessage;
+
+	if (!ValidateInput(Input, ValidatedInput, ErrorMessage))
+	{
+		SubmittingPlayer->ClientReceiveMessage(ErrorMessage);
+		return;
+	}
+
+	if (!SubmittingPlayerState->AddAttempt())
+	{
+		SubmittingPlayer->ClientReceiveMessage(TEXT("시도 횟수를 증가시킬 수 없습니다."));
+		return;
+	}
+
+	int32 StrikeCount = 0;
+	int32 BallCount = 0;
+	const FString Result = CheckAnswer(
+		ValidatedInput,
+		StrikeCount,
+		BallCount
+	);
+
+	const FString ResultMessage = FString::Printf(
+		TEXT("%s: %s -> %s [%d/%d]"),
+		*SubmittingPlayerState->GetPlayerName(),
+		*ValidatedInput,
+		*Result,
+		SubmittingPlayerState->GetCurrentAttempts(),
+		SubmittingPlayerState->GetMaxAttempts()
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[Server] %s"), *ResultMessage);
+	SubmittingPlayer->ClientReceiveMessage(ResultMessage);
+}
+
 void AHW6GameMode::GenerateRandomNumbers()
 {
 	if (!HasAuthority())
