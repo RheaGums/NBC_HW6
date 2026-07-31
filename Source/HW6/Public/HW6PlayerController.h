@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerController.h"
 #include "HW6PlayerController.generated.h"
 
+class UHW6MainWidget;
+
 UCLASS()
 class HW6_API AHW6PlayerController : public APlayerController
 {
@@ -20,4 +22,15 @@ public:
 
 	UFUNCTION(Client, Reliable)
 	void ClientReceiveMessage(const FString& Message);
+
+	void RefreshAttemptsDisplay();
+
+protected:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UHW6MainWidget> MainWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UHW6MainWidget> MainWidget;
 };

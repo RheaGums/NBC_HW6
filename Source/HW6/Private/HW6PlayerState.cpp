@@ -2,6 +2,7 @@
 
 #include "HW6PlayerState.h"
 
+#include "HW6PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
 AHW6PlayerState::AHW6PlayerState()
@@ -50,6 +51,7 @@ bool AHW6PlayerState::AddAttempt()
 		MaxAttempts
 	);
 
+	NotifyAttemptsChanged();
 	return true;
 }
 
@@ -61,6 +63,7 @@ void AHW6PlayerState::ResetAttempts()
 	}
 
 	CurrentAttempts = 0;
+	NotifyAttemptsChanged();
 }
 
 void AHW6PlayerState::OnRep_CurrentAttempts()
@@ -73,4 +76,17 @@ void AHW6PlayerState::OnRep_CurrentAttempts()
 		CurrentAttempts,
 		MaxAttempts
 	);
+
+	NotifyAttemptsChanged();
+}
+
+void AHW6PlayerState::NotifyAttemptsChanged()
+{
+	AHW6PlayerController* HW6PlayerController =
+		Cast<AHW6PlayerController>(GetOwner());
+
+	if (IsValid(HW6PlayerController))
+	{
+		HW6PlayerController->RefreshAttemptsDisplay();
+	}
 }

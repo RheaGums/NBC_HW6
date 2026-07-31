@@ -27,6 +27,8 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentAttempts();
 
+	void NotifyAttemptsChanged();
+
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentAttempts, VisibleAnywhere, BlueprintReadOnly, Category = "Number Baseball")
 	int32 CurrentAttempts;
 
