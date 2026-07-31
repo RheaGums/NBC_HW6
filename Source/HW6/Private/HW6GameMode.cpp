@@ -315,7 +315,7 @@ void AHW6GameMode::EndRound(const FString& ResultMessage)
 
 	if (IsValid(HW6GameState))
 	{
-		HW6GameState->MulticastBroadcastMessage(ResultMessage);
+		HW6GameState->MulticastShowRoundResult(ResultMessage);
 	}
 
 	GetWorldTimerManager().SetTimer(
@@ -356,6 +356,7 @@ void AHW6GameMode::ResetGame()
 
 	if (IsValid(HW6GameState))
 	{
+		HW6GameState->MulticastHideRoundResult();
 		HW6GameState->MulticastBroadcastMessage(
 			TEXT("새 라운드가 시작되었습니다!")
 		);

@@ -124,3 +124,28 @@ void AHW6PlayerController::RefreshAttemptsDisplay()
 		HW6PlayerState->GetMaxAttempts()
 	);
 }
+
+void AHW6PlayerController::ShowRoundResult(const FString& ResultMessage)
+{
+	if (IsValid(MainWidget))
+	{
+		MainWidget->ShowRoundResult(ResultMessage);
+	}
+	else if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			5.0f,
+			FColor::Yellow,
+			ResultMessage
+		);
+	}
+}
+
+void AHW6PlayerController::HideRoundResult()
+{
+	if (IsValid(MainWidget))
+	{
+		MainWidget->HideRoundResult();
+	}
+}

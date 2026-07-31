@@ -8,6 +8,7 @@
 
 class UButton;
 class UEditableTextBox;
+class UOverlay;
 class UTextBlock;
 
 UCLASS()
@@ -18,6 +19,8 @@ class HW6_API UHW6MainWidget : public UUserWidget
 public:
 	void SetMessage(const FString& Message);
 	void SetAttempts(int32 CurrentAttempts, int32 MaxAttempts);
+	void ShowRoundResult(const FString& ResultMessage);
+	void HideRoundResult();
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -36,4 +39,10 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> AttemptsTextBlock;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UOverlay> ResultOverlay;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> ResultTextBlock;
 };

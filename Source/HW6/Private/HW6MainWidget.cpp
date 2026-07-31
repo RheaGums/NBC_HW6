@@ -4,6 +4,7 @@
 
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/Overlay.h"
 #include "Components/TextBlock.h"
 #include "HW6PlayerController.h"
 
@@ -18,6 +19,8 @@ void UHW6MainWidget::NativeOnInitialized()
 			&UHW6MainWidget::HandleSubmitClicked
 		);
 	}
+
+	HideRoundResult();
 }
 
 void UHW6MainWidget::HandleSubmitClicked()
@@ -62,4 +65,25 @@ void UHW6MainWidget::SetAttempts(
 	);
 
 	AttemptsTextBlock->SetText(AttemptsText);
+}
+
+void UHW6MainWidget::ShowRoundResult(const FString& ResultMessage)
+{
+	if (IsValid(ResultTextBlock))
+	{
+		ResultTextBlock->SetText(FText::FromString(ResultMessage));
+	}
+
+	if (IsValid(ResultOverlay))
+	{
+		ResultOverlay->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void UHW6MainWidget::HideRoundResult()
+{
+	if (IsValid(ResultOverlay))
+	{
+		ResultOverlay->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }

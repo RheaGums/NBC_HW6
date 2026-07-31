@@ -25,6 +25,8 @@ public:
 
 	void DisplayMessage(const FString& Message);
 	void RefreshAttemptsDisplay();
+	void ShowRoundResult(const FString& ResultMessage);
+	void HideRoundResult();
 
 protected:
 	virtual void BeginPlay() override;
