@@ -340,9 +340,3 @@ Content
 - `BeginPlay`, `PostLogin`, `Logout`을 각각 게임 시작, 플레이어 접속, 퇴장 처리 시점에 사용했습니다.
 - `BindWidget`은 이름뿐 아니라 실제 Widget 타입까지 일치해야 합니다.
 - 서버 타이머와 복제 상태를 사용하면 모든 플레이어에게 같은 턴 규칙을 적용할 수 있습니다.
-
-## 추가 문서
-
-구현 과정과 문제 해결을 더 자세히 정리한 기술 문서는 다음 파일에 있습니다.
-
-- `TIL_Unreal_NumberBaseball_Network.html`
