@@ -46,6 +46,7 @@ Unreal Engine 5 C++로 구현한 서버 권한 기반 멀티플레이 숫자 야
 - [x] `PlayerState` 기반 플레이어별 시도 횟수 관리
 - [x] 시도 횟수 Replication 및 UMG 갱신
 - [x] Server RPC를 통한 클라이언트 입력 전달
+- [x] `/chat 내용` 형식의 기본 멀티플레이 채팅
 - [x] Client RPC를 통한 개인 오류 메시지 전달
 - [x] NetMulticast RPC를 통한 전체 판정·결과 공지
 - [x] 승리 및 무승부 판정
@@ -74,8 +75,8 @@ Unreal Engine 5 C++로 구현한 서버 권한 기반 멀티플레이 숫자 야
 | `AHW6GameMode` | 서버 전용 | 전체 게임 규칙의 권위자 | 정답 생성, 입력 검사, 판정, 승패, 턴, 타이머, 리셋 |
 | `AHW6GameState` | 서버 + 모든 클라이언트 | 전체 공유 상태 | 현재 턴과 남은 시간 복제, 전체 메시지 Multicast |
 | `AHW6PlayerState` | 서버 + 모든 클라이언트 | 플레이어별 공유 상태 | 플레이어 이름, 현재/최대 시도 횟수 |
-| `AHW6PlayerController` | 서버 + 소유 클라이언트 | 입력과 네트워크 통신 | UI 생성, Server RPC, Client RPC, 로컬 UI 갱신 |
-| `UHW6MainWidget` | 로컬 클라이언트 | 화면 표시와 입력 전달 | 숫자 입력, 메시지·횟수·턴·타이머·결과 표시 |
+| `AHW6PlayerController` | 서버 + 소유 클라이언트 | 입력과 네트워크 통신 | 숫자와 채팅 분기, Server RPC, Client RPC, 로컬 UI 갱신 |
+| `UHW6MainWidget` | 로컬 클라이언트 | 화면 표시와 입력 전달 | 버튼·Enter 입력, 메시지·횟수·턴·타이머·결과 표시 |
 | `WBP_MainWidget` | 로컬 클라이언트 | 실제 UMG 레이아웃 | C++ `BindWidget` 대상 위젯 배치 |
 
 ### 클래스를 분리한 이유
@@ -119,6 +120,7 @@ WBP_MainWidget 갱신
 | 방식 | 사용 위치 | 이유 |
 | --- | --- | --- |
 | Server RPC | `ServerSubmitGuess` | 소유 클라이언트가 서버에 입력을 요청 |
+| Server RPC | `ServerSubmitChatMessage` | 소유 클라이언트가 서버에 채팅 전송을 요청 |
 | Client RPC | `ClientReceiveMessage` | 잘못된 입력 등 요청자 개인에게만 오류 전달 |
 | NetMulticast RPC | 판정, 시간 초과, 승리·무승부 공지 | 서버에서 발생한 사건을 전원에게 전달 |
 | Property Replication | 시도 횟수, 현재 턴, 남은 시간 | 모든 인스턴스가 지속 상태의 최신값을 유지 |
@@ -222,7 +224,7 @@ RemainingTurnSeconds = TurnDurationSeconds;
 
 | Widget 이름 | 타입 | 표시 내용 |
 | --- | --- | --- |
-| `GuessInputTextBox` | Editable Text Box | 숫자 입력 |
+| `GuessInputTextBox` | Editable Text Box | 숫자 또는 `/chat 내용` 입력 |
 | `SubmitButton` | Button | 서버에 입력 제출 |
 | `MessageTextBlock` | TextBlock | 오류 및 판정 메시지 |
 | `AttemptsTextBlock` | TextBlock | 현재/최대 시도 횟수 |
@@ -233,7 +235,7 @@ RemainingTurnSeconds = TurnDurationSeconds;
 
 `PlayerController::BeginPlay()`에서는 `IsLocalController()`를 확인한 뒤에만 위젯을 생성합니다. 서버에 존재하는 원격 PlayerController나 Dedicated Server가 불필요한 UI를 생성하지 않도록 하기 위함입니다.
 
-현재 턴과 로컬 PlayerState가 일치하고 서버 시간이 남아 있을 때만 입력창과 버튼이 활성화됩니다. UI를 우회한 RPC도 서버의 `ProcessPlayerInput()`에서 다시 검사합니다.
+숫자 입력은 서버의 `ProcessPlayerInput()`에서 현재 턴과 남은 시간을 검사하므로 UI를 우회해도 거부됩니다. 같은 입력창에서 `/chat 내용`을 보내면 턴이나 시도 횟수와 관계없이 서버가 내용을 검증한 뒤 모든 클라이언트에 전달합니다.
 
 ## 프로젝트 구조
 
@@ -267,6 +269,7 @@ Content
 4. `Net Mode`를 `Play As Listen Server`로 지정합니다.
 5. 서버와 클라이언트 창을 실행합니다.
 6. 현재 턴인 플레이어의 입력창에서 중복되지 않는 숫자 3개를 입력합니다.
+7. 일반 채팅은 같은 입력창에 `/chat 안녕하세요`처럼 입력합니다. 버튼과 Enter 키를 모두 사용할 수 있습니다.
 
 서버가 생성한 정답은 개발 테스트용으로 Output Log에서 확인할 수 있습니다.
 
@@ -289,9 +292,10 @@ Content
 ### 네트워크 및 게임 진행
 
 - [ ] 서버와 클라이언트에 같은 판정 메시지가 표시되는가?
+- [ ] `/chat 내용`이 모든 창에 표시되고 시도 횟수와 턴은 유지되는가?
 - [ ] 각 창의 시도 횟수는 해당 로컬 플레이어의 값인가?
 - [ ] 현재 턴과 남은 시간이 모든 창에서 동일한가?
-- [ ] 현재 턴이 아닌 플레이어의 UI 입력이 비활성화되는가?
+- [ ] 현재 턴이 아닌 플레이어의 숫자 입력을 서버가 거부하는가?
 - [ ] 콘솔 등으로 RPC를 강제 호출해도 서버가 거부하는가?
 - [ ] 정상 입력 후 다음 플레이어로 턴이 넘어가는가?
 - [ ] 잘못된 입력은 기회와 턴을 유지하는가?
@@ -329,6 +333,7 @@ Content
 - `UPROPERTY(ReplicatedUsing)`: 상태 복제 및 변경 알림
 - `UFUNCTION(Server/Client/NetMulticast)`: 실행 대상별 RPC
 - Dynamic Delegate: `SubmitButton->OnClicked.AddDynamic()`
+- Dynamic Delegate: `GuessInputTextBox->OnTextCommitted.AddDynamic()`
 
 ## 학습 내용
 

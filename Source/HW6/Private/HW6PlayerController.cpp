@@ -64,6 +64,22 @@ void AHW6PlayerController::SubmitGuess(const FString& Input)
 		return;
 	}
 
+	const FString NormalizedInput = Input.TrimStartAndEnd();
+
+	if (
+		NormalizedInput.Equals(TEXT("/chat"), ESearchCase::IgnoreCase)
+		|| NormalizedInput.StartsWith(
+			TEXT("/chat "),
+			ESearchCase::IgnoreCase
+		)
+	)
+	{
+		ServerSubmitChatMessage(
+			NormalizedInput.Mid(5).TrimStartAndEnd()
+		);
+		return;
+	}
+
 	ServerSubmitGuess(Input);
 }
 
@@ -78,6 +94,56 @@ void AHW6PlayerController::ServerSubmitGuess_Implementation(const FString& Input
 	}
 
 	GameMode->ProcessPlayerInput(this, Input);
+}
+
+void AHW6PlayerController::ServerSubmitChatMessage_Implementation(
+	const FString& Message
+)
+{
+	FString SanitizedMessage = Message.TrimStartAndEnd();
+	SanitizedMessage.ReplaceInline(TEXT("\r"), TEXT(" "));
+	SanitizedMessage.ReplaceInline(TEXT("\n"), TEXT(" "));
+
+	if (SanitizedMessage.IsEmpty())
+	{
+		ClientReceiveMessage(TEXT("채팅 내용을 입력해주세요."));
+		return;
+	}
+
+	constexpr int32 MaxChatMessageLength = 100;
+
+	if (SanitizedMessage.Len() > MaxChatMessageLength)
+	{
+		ClientReceiveMessage(TEXT("채팅은 100자 이하로 입력해주세요."));
+		return;
+	}
+
+	const AHW6PlayerState* HW6PlayerState =
+		GetPlayerState<AHW6PlayerState>();
+
+	if (!IsValid(HW6PlayerState))
+	{
+		ClientReceiveMessage(TEXT("PlayerState를 찾을 수 없습니다."));
+		return;
+	}
+
+	AHW6GameState* HW6GameState =
+		GetWorld()->GetGameState<AHW6GameState>();
+
+	if (!IsValid(HW6GameState))
+	{
+		ClientReceiveMessage(TEXT("서버 GameState를 찾을 수 없습니다."));
+		return;
+	}
+
+	const FString ChatMessage = FString::Printf(
+		TEXT("[Chat] %s: %s"),
+		*HW6PlayerState->GetPlayerName(),
+		*SanitizedMessage
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[Server] %s"), *ChatMessage);
+	HW6GameState->MulticastBroadcastMessage(ChatMessage);
 }
 
 void AHW6PlayerController::ClientReceiveMessage_Implementation(const FString& Message)

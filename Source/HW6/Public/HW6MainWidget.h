@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/EditableTextBox.h"
 #include "HW6MainWidget.generated.h"
 
 class UButton;
-class UEditableTextBox;
 class UOverlay;
 class UTextBlock;
 
@@ -32,6 +32,14 @@ protected:
 
 	UFUNCTION()
 	void HandleSubmitClicked();
+
+	UFUNCTION()
+	void HandleInputTextCommitted(
+		const FText& Text,
+		ETextCommit::Type CommitMethod
+	);
+
+	void SubmitCurrentInput();
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UEditableTextBox> GuessInputTextBox;

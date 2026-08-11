@@ -14,9 +14,37 @@ void UHW6MainWidget::NativeOnInitialized()
 
 	if (IsValid(SubmitButton))
 	{
-		SubmitButton->OnClicked.AddDynamic(
+		if (!SubmitButton->OnClicked.IsAlreadyBound(
 			this,
 			&UHW6MainWidget::HandleSubmitClicked
+		))
+		{
+			SubmitButton->OnClicked.AddDynamic(
+				this,
+				&UHW6MainWidget::HandleSubmitClicked
+			);
+		}
+	}
+
+	if (IsValid(GuessInputTextBox))
+	{
+		if (!GuessInputTextBox->OnTextCommitted.IsAlreadyBound(
+			this,
+			&UHW6MainWidget::HandleInputTextCommitted
+		))
+		{
+			GuessInputTextBox->OnTextCommitted.AddDynamic(
+				this,
+				&UHW6MainWidget::HandleInputTextCommitted
+			);
+		}
+
+		GuessInputTextBox->SetHintText(
+			NSLOCTEXT(
+				"HW6",
+				"InputHint",
+				"숫자 3자리 또는 /chat 내용"
+			)
 		);
 	}
 
@@ -24,6 +52,22 @@ void UHW6MainWidget::NativeOnInitialized()
 }
 
 void UHW6MainWidget::HandleSubmitClicked()
+{
+	SubmitCurrentInput();
+}
+
+void UHW6MainWidget::HandleInputTextCommitted(
+	const FText& Text,
+	const ETextCommit::Type CommitMethod
+)
+{
+	if (CommitMethod == ETextCommit::OnEnter)
+	{
+		SubmitCurrentInput();
+	}
+}
+
+void UHW6MainWidget::SubmitCurrentInput()
 {
 	AHW6PlayerController* PlayerController =
 		Cast<AHW6PlayerController>(GetOwningPlayer());
@@ -97,17 +141,14 @@ void UHW6MainWidget::SetTurnState(
 		TurnTimerTextBlock->SetText(TimerText);
 	}
 
-	const bool bCanSubmit =
-		bIsLocalPlayersTurn && RemainingSeconds > 0;
-
 	if (IsValid(GuessInputTextBox))
 	{
-		GuessInputTextBox->SetIsEnabled(bCanSubmit);
+		GuessInputTextBox->SetIsEnabled(true);
 	}
 
 	if (IsValid(SubmitButton))
 	{
-		SubmitButton->SetIsEnabled(bCanSubmit);
+		SubmitButton->SetIsEnabled(true);
 	}
 }
 
